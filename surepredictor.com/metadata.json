@@ -1,0 +1,5 @@
+{
+  "name": "surepredictor.com",
+  "description": "An advanced football prediction platform utilizing Gemini AI to analyze global team performance and provide high-accuracy match outcomes, goal probabilities, and historical insights.",
+  "requestFramePermissions": []
+}
