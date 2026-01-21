@@ -1,87 +1,322 @@
 <?php
-// Simple logic to handle form submission
-$message_sent = false;
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $email = filter_input(INPUT_POST, 'email', FILTER_SANITIZE_EMAIL);
-    if (filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        // In a real app, you'd save to a DB or send an email here
-        $message_sent = true;
-    }
+if (!file_exists('includes/config.php')) {
+    header('Location: install/');
+    exit;
 }
+require_once 'includes/header.php';
+
+$header_ad = getAd($conn, 'header_top');
+$mid_ad = getAd($conn, 'mid_content');
+$footer_ad = getAd($conn, 'result_footer');
 ?>
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LaunchPad | PHP Landing Page</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-gray-50 text-gray-900 font-sans">
+<div class="max-w-5xl mx-auto px-4 py-12 md:py-20">
+    <!-- Ad Slot: Header Top -->
+    <?php if ($header_ad): ?>
+        <div class="mb-12 flex justify-center"><?php echo $header_ad; ?></div>
+    <?php endif; ?>
 
-    <nav class="flex items-center justify-between px-8 py-6 bg-white shadow-sm">
-        <div class="text-2xl font-bold text-blue-600">LaunchPad</div>
-        <div class="space-x-6">
-            <a href="#features" class="hover:text-blue-600">Features</a>
-            <a href="#" class="bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700">Get Started</a>
+    <!-- Header -->
+    <header class="text-center mb-16 space-y-4">
+        <div class="inline-flex items-center justify-center p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl mb-4 border border-emerald-100 dark:border-emerald-800">
+            <i class="fas fa-chart-line text-3xl text-emerald-600"></i>
         </div>
-    </nav>
-
-    <header class="max-w-6xl mx-auto px-8 py-20 flex flex-col md:flex-row items-center">
-        <div class="md:w-1/2 mb-10 md:mb-0">
-            <h1 class="text-5xl md:text-6xl font-extrabold leading-tight mb-6">
-                Build your next idea <span class="text-blue-600">faster.</span>
-            </h1>
-            <p class="text-lg text-gray-600 mb-8">
-                A lightweight, PHP-powered landing page template to help you validate your product in minutes.
-            </p>
-            
-            <?php if ($message_sent): ?>
-                <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">
-                    Thanks! We'll be in touch soon.
-                </div>
-            <?php else: ?>
-                <form action="<?php echo $_SERVER['PHP_SELF']; ?>" method="POST" class="flex flex-col sm:flex-row gap-2">
-                    <input type="email" name="email" placeholder="Enter your email" required
-                           class="flex-1 px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <button type="submit" class="bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition">
-                        Join Waitlist
-                    </button>
-                </form>
-            <?php endif; ?>
-        </div>
-        <div class="md:w-1/2 flex justify-center">
-            <img src="https://via.placeholder.com/500x400" alt="Product Mockup" class="rounded-2xl shadow-2xl">
-        </div>
+        <h1 class="text-4xl md:text-6xl font-black tracking-tight text-slate-900 dark:text-white">
+            <?php
+                $name_parts = explode('.', $settings['site_name'] ?: 'surepredictor.com');
+                echo $name_parts[0];
+                if (isset($name_parts[1])) echo '<span class="text-emerald-600">.' . $name_parts[1] . '</span>';
+            ?>
+        </h1>
+        <p class="text-slate-500 dark:text-slate-400 text-lg md:text-xl max-w-2xl mx-auto font-light">
+            <?php echo $settings['site_description']; ?>
+        </p>
     </header>
 
-    <section id="features" class="bg-white py-20">
-        <div class="max-w-6xl mx-auto px-8">
-            <h2 class="text-3xl font-bold text-center mb-12">Why Choose Us?</h2>
-            <div class="grid md:grid-cols-3 gap-10">
-                <div class="p-6 bg-gray-50 rounded-xl">
-                    <div class="text-blue-600 text-2xl mb-4">⚡</div>
-                    <h3 class="text-xl font-bold mb-2">Lightning Fast</h3>
-                    <p class="text-gray-600">Optimized for speed with minimal server-side processing.</p>
+    <!-- Prediction Input Form -->
+    <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-8 rounded-3xl shadow-xl mb-12 relative overflow-hidden">
+        <div class="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 blur-[100px] -mr-32 -mt-32 rounded-full"></div>
+        <form id="prediction-form" class="relative z-10 space-y-8">
+            <div class="flex flex-col md:flex-row gap-6 items-center">
+                <!-- Home Team -->
+                <div class="relative flex-1 w-full">
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Home Team</label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <i class="fas fa-house text-emerald-600"></i>
+                        </div>
+                        <input type="text" id="home-team" autocomplete="off" placeholder="e.g. Real Madrid" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl py-3 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all">
+                        <div id="home-suggestions" class="absolute z-50 w-full mt-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl overflow-hidden hidden max-h-60 overflow-y-auto"></div>
+                    </div>
                 </div>
-                <div class="p-6 bg-gray-50 rounded-xl">
-                    <div class="text-blue-600 text-2xl mb-4">🛡️</div>
-                    <h3 class="text-xl font-bold mb-2">Secure</h3>
-                    <p class="text-gray-600">Built-in PHP filtering to keep your lead data safe.</p>
+
+                <div class="hidden md:flex flex-col items-center justify-center mt-6">
+                    <span class="text-slate-300 font-bold italic">VS</span>
                 </div>
-                <div class="p-6 bg-gray-50 rounded-xl">
-                    <div class="text-blue-600 text-2xl mb-4">📱</div>
-                    <h3 class="text-xl font-bold mb-2">Responsive</h3>
-                    <p class="text-gray-600">Looks great on mobile, tablet, and desktop screens.</p>
+
+                <!-- Away Team -->
+                <div class="relative flex-1 w-full">
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Away Team</label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <i class="fas fa-plane text-emerald-600"></i>
+                        </div>
+                        <input type="text" id="away-team" autocomplete="off" placeholder="e.g. Manchester City" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl py-3 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all">
+                        <div id="away-suggestions" class="absolute z-50 w-full mt-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl overflow-hidden hidden max-h-60 overflow-y-auto"></div>
+                    </div>
                 </div>
             </div>
+
+            <div class="flex flex-col items-center">
+                <button type="submit" id="submit-btn" class="w-full md:w-auto px-12 py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-lg rounded-2xl transition-all shadow-lg shadow-emerald-600/20 active:scale-95 flex items-center justify-center gap-3">
+                    <i class="fas fa-bolt"></i>
+                    Get Prediction
+                </button>
+                <p class="mt-4 text-xs text-slate-400 italic">
+                    *AI analysis based on current squad data and latest league standings.
+                </p>
+            </div>
+        </form>
+    </div>
+
+    <!-- Ad Slot: Mid Content -->
+    <?php if ($mid_ad): ?>
+        <div class="mb-12 flex justify-center"><?php echo $mid_ad; ?></div>
+    <?php endif; ?>
+
+    <!-- Results Section -->
+    <div id="results-container" class="mt-12 min-h-[300px]">
+        <div id="empty-state" class="flex flex-col items-center justify-center py-20 border-2 border-dashed border-slate-100 dark:border-slate-800 rounded-3xl">
+            <i class="fas fa-chart-bar text-4xl text-slate-200 dark:text-slate-700 mb-4"></i>
+            <p class="text-slate-400 dark:text-slate-500">Search for teams to generate professional AI analysis</p>
         </div>
-    </section>
 
-    <footer class="py-10 text-center text-gray-500 border-t">
-        <p>&copy; <?php echo date("Y"); ?> LaunchPad Inc. All rights reserved.</p>
-    </footer>
+        <div id="loading-state" class="hidden flex-col items-center justify-center space-y-6 py-20">
+             <div class="relative h-16 w-16">
+                <div class="absolute inset-0 border-4 border-emerald-100 dark:border-emerald-900 rounded-full"></div>
+                <div class="absolute inset-0 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
+             </div>
+             <p class="text-slate-500 dark:text-slate-400 animate-pulse text-center">
+               Synchronizing latest team data and tactical performance stats...
+             </p>
+        </div>
 
-</body>
-</html>
+        <div id="prediction-result" class="hidden">
+            <!-- Result will be injected here -->
+        </div>
+    </div>
+
+    <!-- Ad Slot: Result Footer -->
+    <?php if ($footer_ad): ?>
+        <div class="mt-12 flex justify-center"><?php echo $footer_ad; ?></div>
+    <?php endif; ?>
+</div>
+
+<script>
+    const form = document.getElementById('prediction-form');
+    const homeInput = document.getElementById('home-team');
+    const awayInput = document.getElementById('away-team');
+    const submitBtn = document.getElementById('submit-btn');
+    const resultsContainer = document.getElementById('results-container');
+    const emptyState = document.getElementById('empty-state');
+    const loadingState = document.getElementById('loading-state');
+    const predictionResult = document.getElementById('prediction-result');
+
+    // Autocomplete Logic
+    const setupAutocomplete = (input, suggestionsList) => {
+        let debounceTimer;
+        input.addEventListener('input', () => {
+            clearTimeout(debounceTimer);
+            const val = input.value;
+            if (val.length < 3) {
+                suggestionsList.innerHTML = '';
+                suggestionsList.classList.add('hidden');
+                return;
+            }
+
+            debounceTimer = setTimeout(() => {
+                fetch(`api/get_teams?q=${encodeURIComponent(val)}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.length > 0) {
+                            suggestionsList.innerHTML = data.map(item => `
+                                <li class="px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer border-b border-slate-100 dark:border-slate-700 last:border-0 transition-colors" onclick="selectTeam('${input.id}', '${item.name.replace(/'/g, "\\'")}')">
+                                    <div class="font-medium text-slate-900 dark:text-white">${item.name}</div>
+                                    <div class="text-xs text-slate-500 dark:text-slate-400 flex justify-between">
+                                        <span>${item.league}</span>
+                                        <span class="italic">${item.country}</span>
+                                    </div>
+                                </li>
+                            `).join('');
+                            suggestionsList.classList.remove('hidden');
+                        } else {
+                            suggestionsList.classList.add('hidden');
+                        }
+                    });
+            }, 300);
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!input.contains(e.target) && !suggestionsList.contains(e.target)) {
+                suggestionsList.classList.add('hidden');
+            }
+        });
+    };
+
+    window.selectTeam = (inputId, name) => {
+        const input = document.getElementById(inputId);
+        input.value = name;
+        document.getElementById(inputId + '-suggestions').classList.add('hidden');
+    };
+
+    setupAutocomplete(homeInput, document.getElementById('home-suggestions'));
+    setupAutocomplete(awayInput, document.getElementById('away-suggestions'));
+
+    // Form Submission
+    form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const home = homeInput.value;
+        const away = awayInput.value;
+
+        if (!home || !away) return;
+
+        emptyState.classList.add('hidden');
+        predictionResult.classList.add('hidden');
+        loadingState.classList.remove('hidden');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<div class="animate-spin h-5 w-5 border-3 border-white border-t-transparent rounded-full"></div> AI Analyzing Matchup...';
+
+        fetch(`api/get_prediction?home=${encodeURIComponent(home)}&away=${encodeURIComponent(away)}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                renderPrediction(data, home, away);
+            })
+            .catch(err => {
+                predictionResult.innerHTML = `
+                    <div class="bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800 text-red-600 dark:text-red-400 p-6 rounded-2xl flex items-center gap-4">
+                        <i class="fas fa-circle-exclamation text-xl"></i>
+                        <p>${err.message}</p>
+                    </div>
+                `;
+                predictionResult.classList.remove('hidden');
+            })
+            .finally(() => {
+                loadingState.classList.add('hidden');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-bolt"></i> Get Prediction';
+            });
+    });
+
+    function renderPrediction(data, home, away) {
+        const overUnderColor = data.overUnderPrediction.includes('Over') ? 'text-blue-600' : 'text-amber-600';
+        const overUnderBg = data.overUnderPrediction.includes('Over') ? 'bg-blue-50 border-blue-100 text-blue-700' : 'bg-amber-50 border-amber-100 text-amber-700';
+
+        predictionResult.innerHTML = `
+            <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-3xl overflow-hidden shadow-2xl animate-in fade-in slide-in-from-bottom-6 duration-1000 ease-out">
+                <div class="bg-gradient-to-br from-emerald-600 via-emerald-500 to-green-500 p-8 text-center relative overflow-hidden">
+                    <div class="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+                        <i class="fas fa-futbol text-9xl -ml-10 -mt-10 rotate-12 text-white"></i>
+                    </div>
+                    <h2 class="text-3xl font-black text-white mb-2 relative z-10 tracking-tight">Match Forecast</h2>
+                    <div class="relative z-10 flex items-center justify-center gap-3 mt-4">
+                        <span class="bg-white/20 backdrop-blur-md px-4 py-1.5 rounded-xl text-white font-bold text-lg border border-white/30">${home}</span>
+                        <span class="text-white/70 font-black italic">VS</span>
+                        <span class="bg-white/20 backdrop-blur-md px-4 py-1.5 rounded-xl text-white font-bold text-lg border border-white/30">${away}</span>
+                    </div>
+                </div>
+
+                <div class="p-8 md:p-12 space-y-12">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-12">
+                        <!-- Main Outcome -->
+                        <div class="flex flex-col items-center text-center space-y-6">
+                            <div class="space-y-1">
+                                <span class="text-slate-400 text-xs font-bold uppercase tracking-widest">Confidence Level</span>
+                                <h3 class="text-xl font-extrabold text-slate-800 dark:text-white tracking-tight">Main Outcome</h3>
+                            </div>
+
+                            <div class="h-48 w-48 relative">
+                                <svg class="w-full h-full" viewBox="0 0 100 100">
+                                    <circle class="text-slate-50 dark:text-slate-700 stroke-current" stroke-width="8" fill="transparent" r="40" cx="50" cy="50"/>
+                                    <circle class="text-emerald-600 stroke-current" stroke-width="8" stroke-linecap="round" fill="transparent" r="40" cx="50" cy="50"
+                                        stroke-dasharray="251.2" stroke-dashoffset="${251.2 - (251.2 * data.mainProbability) / 100}" transform="rotate(-90 50 50)"/>
+                                </svg>
+                                <div class="absolute inset-0 flex flex-col items-center justify-center">
+                                    <span class="text-3xl font-black text-emerald-600">${data.mainProbability}%</span>
+                                    <span class="text-[10px] text-slate-400 font-bold uppercase">Probability</span>
+                                </div>
+                            </div>
+
+                            <div class="bg-emerald-50 dark:bg-emerald-900/20 px-6 py-3 rounded-2xl border border-emerald-100 dark:border-emerald-800">
+                                <span class="text-2xl font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-tighter">${data.mainPrediction}</span>
+                            </div>
+                        </div>
+
+                        <!-- Over/Under -->
+                        <div class="flex flex-col items-center text-center space-y-6">
+                            <div class="space-y-1">
+                                <span class="text-slate-400 text-xs font-bold uppercase tracking-widest">Goals Analysis</span>
+                                <h3 class="text-xl font-extrabold text-slate-800 dark:text-white tracking-tight">Over/Under 2.5</h3>
+                            </div>
+
+                            <div class="h-48 w-48 relative">
+                                <svg class="w-full h-full" viewBox="0 0 100 100">
+                                    <circle class="text-slate-50 dark:text-slate-700 stroke-current" stroke-width="8" fill="transparent" r="40" cx="50" cy="50"/>
+                                    <circle class="${overUnderColor.replace('text', 'stroke')} stroke-current" stroke-width="8" stroke-linecap="round" fill="transparent" r="40" cx="50" cy="50"
+                                        stroke-dasharray="251.2" stroke-dashoffset="${251.2 - (251.2 * data.overUnderProbability) / 100}" transform="rotate(-90 50 50)"/>
+                                </svg>
+                                <div class="absolute inset-0 flex flex-col items-center justify-center">
+                                    <span class="text-3xl font-black ${overUnderColor}">${data.overUnderProbability}%</span>
+                                    <span class="text-[10px] text-slate-400 font-bold uppercase">Confidence</span>
+                                </div>
+                            </div>
+
+                            <div class="px-6 py-3 rounded-2xl border ${overUnderBg} dark:bg-opacity-20">
+                                <span class="text-2xl font-black uppercase tracking-tighter">${data.overUnderPrediction}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="space-y-10">
+                        <div class="flex flex-col items-center">
+                            <div class="px-8 py-3 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-full flex items-center gap-4 shadow-sm">
+                                <span class="text-slate-400 font-semibold uppercase text-xs tracking-widest">Expected Score</span>
+                                <span class="text-slate-900 dark:text-white font-black text-3xl tracking-tighter">${data.expectedScore}</span>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                            <div class="bg-slate-50 dark:bg-slate-900/50 p-8 rounded-[2rem] border border-slate-100 dark:border-slate-800 relative">
+                                <div class="absolute -top-4 left-6 bg-emerald-600 text-white p-2 rounded-xl shadow-lg">
+                                    <i class="fas fa-brain"></i>
+                                </div>
+                                <h3 class="text-slate-800 dark:text-white font-black text-lg mb-4 mt-2 uppercase tracking-tight">AI Reasoning</h3>
+                                <p class="text-slate-600 dark:text-slate-400 leading-relaxed font-medium">${data.reasoning}</p>
+                            </div>
+
+                            <div class="bg-slate-50 dark:bg-slate-900/50 p-8 rounded-[2rem] border border-slate-100 dark:border-slate-800 relative">
+                                <div class="absolute -top-4 left-6 bg-slate-800 dark:bg-slate-700 text-white p-2 rounded-xl shadow-lg">
+                                    <i class="fas fa-chart-line"></i>
+                                </div>
+                                <h3 class="text-slate-800 dark:text-white font-black text-lg mb-4 mt-2 uppercase tracking-tight">Key Insights</h3>
+                                <ul class="space-y-4">
+                                    ${data.keyStats.map((stat, idx) => `
+                                        <li class="flex items-center text-slate-600 dark:text-slate-400 bg-white/50 dark:bg-slate-800/50 p-3 rounded-xl border border-white/80 dark:border-slate-700/80">
+                                            <span class="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-bold mr-3 shrink-0">${idx + 1}</span>
+                                            <span class="font-medium text-sm">${stat}</span>
+                                        </li>
+                                    `).join('')}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        predictionResult.classList.remove('hidden');
+    }
+</script>
+
+<?php require_once 'includes/footer.php'; ?>
